@@ -27,7 +27,6 @@ def get_market_data():
         return None, None
         
     try:
-        # Get both symbols in one request to be efficient
         symbols = "DXY,USD/INR"
         url = f"https://api.twelvedata.com/price?symbol={symbols}&apikey={TWELVE_DATA_API_KEY}"
         
@@ -43,6 +42,10 @@ def get_market_data():
         usdinr_price_str = data.get('USD/INR', {}).get('price')
 
         if not dxy_price_str or not usdinr_price_str:
+            # --- NEW DEBUGGING LINES ADDED HERE ---
+            print("--- RAW API RESPONSE ---")
+            print(data)
+            print("------------------------")
             print("Error: Could not parse price data from Twelve Data response.")
             return None, None
 
@@ -55,8 +58,8 @@ def get_market_data():
         print(f"Error processing data: {e}")
         return None, None
 
+# --- The rest of the script is unchanged ---
 def send_telegram_message(bot_token, chat_id, message):
-    """Sends a message to a specific Telegram chat via a specific bot."""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     params = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
     try:
@@ -74,7 +77,6 @@ if __name__ == "__main__":
 
     if dxy and usdinr:
         message_lines = ["📈 *Market Update*\n"]
-        
         dxy_change_str = ""
         last_dxy = last_prices.get('dxy')
         if last_dxy:
@@ -82,7 +84,6 @@ if __name__ == "__main__":
             percent_change = (change / last_dxy) * 100
             emoji = "🔼" if change > 0 else "🔽"
             dxy_change_str = f"  `{emoji} Change: {change:+.2f} ({percent_change:+.2f}%)`"
-        
         message_lines.append(f"💵 *US Dollar Index (DXY):* `{dxy:.2f}`{dxy_change_str}")
 
         usdinr_change_str = ""
@@ -92,7 +93,6 @@ if __name__ == "__main__":
             percent_change = (change / last_usdinr) * 100
             emoji = "🔼" if change > 0 else "🔽"
             usdinr_change_str = f"  `{emoji} Change: {change:+.4f} ({percent_change:+.2f}%)`"
-
         message_lines.append(f"🇮🇳 *USD/INR Exchange Rate:* `{usdinr:.4f}`{usdinr_change_str}")
 
         message_to_send = "\n".join(message_lines)
@@ -111,5 +111,4 @@ if __name__ == "__main__":
         write_last_prices({'dxy': dxy, 'usdinr': usdinr})
     else:
         print("Could not fetch data. Message not sent.")
-
-            
+        
