@@ -2,59 +2,85 @@ import requests
 import os
 
 # --- Read Credentials from Environment Variables ---
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-FMP_API_KEY = os.environ.get("FMP_API_KEY")
+ALPHA_VANTAGE_API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
 
 def get_market_data():
-    """Fetches USD Index (DXY) and USD/INR exchange rate from FMP."""
+    """Fetches Dollar Index ETF (UUP) and USD/INR from Alpha Vantage."""
+    if not ALPHA_VANTAGE_API_KEY:
+        print("Error: ALPHA_VANTAGE_API_KEY environment variable is not set.")
+        return None, None
+        
     try:
-        dxy_url = f"https://financialmodelingprep.com/api/v3/quote/%5EDXY?apikey={FMP_API_KEY}"
-        usdinr_url = f"https://financialmodelingprep.com/api/v3/fx/USDINR?apikey={FMP_API_KEY}"
-        
-        dxy_response = requests.get(dxy_url)
+        usdinr_url = f"https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=INR&apikey={ALPHA_VANTAGE_API_KEY}"
+        # Using UUP instead of DXY for the Dollar Index
+        dxy_url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=UUP&apikey={ALPHA_VANTAGE_API_KEY}"
+
         usdinr_response = requests.get(usdinr_url)
+        dxy_response = requests.get(dxy_url)
         
-        dxy_response.raise_for_status()
         usdinr_response.raise_for_status()
+        dxy_response.raise_for_status()
 
-        dxy_data = dxy_response.json()[0]
-        usdinr_data = usdinr_response.json()[0]
+        usdinr_data = usdinr_response.json()
+        dxy_data = dxy_response.json()
 
-        dxy_price = dxy_data.get('price', 'N/A')
-        usdinr_price = usdinr_data.get('ask', 'N/A')
+        if "Note" in usdinr_data or "Error Message" in usdinr_data:
+             print(f"Alpha Vantage API error (USDINR): {usdinr_data}")
+             return None, None
+        if "Note" in dxy_data or "Error Message" in dxy_data:
+             print(f"Alpha Vantage API error (UUP): {dxy_data}")
+             return None, None
+
+        usdinr_price_str = usdinr_data.get('Realtime Currency Exchange Rate', {}).get('5. Exchange Rate', 'N/A')
+        dxy_price_str = dxy_data.get('Global Quote', {}).get('05. price', 'N/A')
+
+        dxy_price = float(dxy_price_str) if dxy_price_str != 'N/A' else 'N/A'
+        usdinr_price = float(usdinr_price_str) if usdinr_price_str != 'N/A' else 'N/A'
 
         return dxy_price, usdinr_price
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching data: {e}")
+
+    except (requests.exceptions.RequestException, KeyError, ValueError) as e:
+        print(f"Error processing data: {e}")
         return None, None
 
-def send_telegram_message(message):
-    """Sends a message to your Telegram chat via the bot."""
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    params = {"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"}
+def send_telegram_message(bot_token, chat_id, message):
+    """Sends a message to a specific Telegram chat via a specific bot."""
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    params = {"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
     try:
         response = requests.post(url, data=params)
         response.raise_for_status()
-        print("Message sent successfully!")
+        print(f"Message sent successfully to chat ID: {chat_id}!")
     except requests.exceptions.RequestException as e:
-        print(f"Error sending message: {e}")
+        print(f"Error sending message to {chat_id}: {e}")
 
 if __name__ == "__main__":
-    if not all([TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, FMP_API_KEY]):
-        print("Error: One or more environment variables are not set. Please check your Dokploy configuration.")
+    bots = []
+    bot_1_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    bot_1_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+    if bot_1_token and bot_1_chat_id:
+        bots.append({"token": bot_1_token, "chat_id": bot_1_chat_id})
+
+    bot_2_token = os.environ.get("TELEGRAM_BOT_TOKEN_2")
+    bot_2_chat_id = os.environ.get("TELEGRAM_CHAT_ID_2")
+    if bot_2_token and bot_2_chat_id:
+        bots.append({"token": bot_2_token, "chat_id": bot_2_chat_id})
+    
+    if not bots:
+        print("Error: No bot credentials found in environment variables.")
     else:
         print("Fetching market data...")
         dxy, usdinr = get_market_data()
 
-        if dxy is not None and usdinr is not None:
+        if dxy != 'N/A' and usdinr != 'N/A':
             message_to_send = (
                 f"📈 *Market Update*\n\n"
-                f"💵 *US Dollar Index (DXY):* `{dxy:.2f}`\n"
-                f"🇮🇳 *USD/INR Exchange Rate:* `{usdinr:.2f}`"
+                f"💵 *Dollar Index ETF (UUP):* `{dxy:.2f}`\n"
+                f"🇮🇳 *USD/INR Exchange Rate:* `{usdinr:.4f}`"
             )
-            print("Sending message to Telegram...")
-            send_telegram_message(message_to_send)
+            print(f"Sending message to {len(bots)} bot(s)...")
+            for bot in bots:
+                send_telegram_message(bot['token'], bot['chat_id'], message_to_send)
         else:
             print("Could not fetch data. Message not sent.")
-          
+            
