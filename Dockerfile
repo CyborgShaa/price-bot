@@ -13,5 +13,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy your Python script into the container
 COPY price_bot.py .
 
-# This new command keeps the container running forever.
+# This command keeps the container running forever.
 CMD ["sleep", "infinity"]
