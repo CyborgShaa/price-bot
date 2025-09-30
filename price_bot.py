@@ -114,3 +114,4 @@ if __name__ == "__main__":
         write_last_prices({'uup': uup, 'usdinr': usdinr})
     else:
         print("Could not fetch data. Message not sent.")
+        
