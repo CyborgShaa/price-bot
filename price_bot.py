@@ -21,7 +21,7 @@ def write_last_prices(prices):
         json.dump(prices, f)
 
 def get_market_data():
-    """Fetches DXY and USD/INR from Twelve Data using two different endpoints."""
+    """Fetches UUP and USD/INR from Twelve Data."""
     if not TWELVE_DATA_API_KEY:
         print("Error: TWELVE_DATA_API_KEY environment variable is not set.")
         return None, None
@@ -34,27 +34,27 @@ def get_market_data():
         usdinr_data = usdinr_response.json()
         usdinr_price_str = usdinr_data.get('price')
 
-        # --- Call 2: Get DXY using the /quote endpoint with the correct symbol ---
-        # THIS IS THE LINE WE ARE FIXING
-        dxy_url = f"https://api.twelvedata.com/quote?symbol=TVC:DXY&apikey={TWELVE_DATA_API_KEY}"
-        dxy_response = requests.get(dxy_url)
-        dxy_response.raise_for_status()
-        dxy_data = dxy_response.json()
-        dxy_price_str = dxy_data.get('close')
+        # --- Call 2: Get UUP using the /quote endpoint ---
+        # Using UUP as the reliable proxy for the Dollar Index
+        uup_url = f"https://api.twelvedata.com/quote?symbol=UUP&apikey={TWELVE_DATA_API_KEY}"
+        uup_response = requests.get(uup_url)
+        uup_response.raise_for_status()
+        uup_data = uup_response.json()
+        uup_price_str = uup_data.get('close')
 
-        if not dxy_price_str or not usdinr_price_str:
-            print("--- RAW DXY RESPONSE ---")
-            print(dxy_data)
+        if not uup_price_str or not usdinr_price_str:
+            print("--- RAW UUP RESPONSE ---")
+            print(uup_data)
             print("--- RAW USD/INR RESPONSE ---")
             print(usdinr_data)
             print("------------------------")
             print("Error: Could not parse price data from one of the Twelve Data responses.")
             return None, None
 
-        dxy_price = float(dxy_price_str)
+        uup_price = float(uup_price_str)
         usdinr_price = float(usdinr_price_str)
 
-        return dxy_price, usdinr_price
+        return uup_price, usdinr_price
 
     except (requests.exceptions.RequestException, KeyError, ValueError) as e:
         print(f"Error processing data: {e}")
@@ -75,18 +75,19 @@ if __name__ == "__main__":
     last_prices = read_last_prices()
     
     print("Fetching market data...")
-    dxy, usdinr = get_market_data()
+    uup, usdinr = get_market_data()
 
-    if dxy and usdinr:
+    if uup and usdinr:
         message_lines = ["📈 *Market Update*\n"]
-        dxy_change_str = ""
-        last_dxy = last_prices.get('dxy')
-        if last_dxy:
-            change = dxy - last_dxy
-            percent_change = (change / last_dxy) * 100
+        uup_change_str = ""
+        last_uup = last_prices.get('uup')
+        if last_uup:
+            change = uup - last_uup
+            percent_change = (change / last_uup) * 100
             emoji = "🔼" if change > 0 else "🔽"
-            dxy_change_str = f"  `{emoji} Change: {change:+.2f} ({percent_change:+.2f}%)`"
-        message_lines.append(f"💵 *US Dollar Index (DXY):* `{dxy:.2f}`{dxy_change_str}")
+            uup_change_str = f"  `{emoji} Change: {change:+.2f} ({percent_change:+.2f}%)`"
+        # Updating the message to reflect UUP
+        message_lines.append(f"💵 *Dollar Index ETF (UUP):* `{uup:.2f}`{uup_change_str}")
 
         usdinr_change_str = ""
         last_usdinr = last_prices.get('usdinr')
@@ -110,7 +111,6 @@ if __name__ == "__main__":
             for bot in bots:
                 send_telegram_message(bot['token'], bot['chat_id'], message_to_send)
         
-        write_last_prices({'dxy': dxy, 'usdinr': usdinr})
+        write_last_prices({'uup': uup, 'usdinr': usdinr})
     else:
         print("Could not fetch data. Message not sent.")
-        
