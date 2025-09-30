@@ -21,32 +21,33 @@ def write_last_prices(prices):
         json.dump(prices, f)
 
 def get_market_data():
-    """Fetches DXY and USD/INR from Twelve Data in a single API call."""
+    """Fetches DXY and USD/INR from Twelve Data using two different endpoints."""
     if not TWELVE_DATA_API_KEY:
         print("Error: TWELVE_DATA_API_KEY environment variable is not set.")
         return None, None
         
     try:
-        symbols = "DXY,USD/INR"
-        url = f"https://api.twelvedata.com/price?symbol={symbols}&apikey={TWELVE_DATA_API_KEY}"
-        
-        response = requests.get(url)
-        response.raise_for_status()
-        data = response.json()
+        # --- Call 1: Get USD/INR using the /price endpoint ---
+        usdinr_url = f"https://api.twelvedata.com/price?symbol=USD/INR&apikey={TWELVE_DATA_API_KEY}"
+        usdinr_response = requests.get(usdinr_url)
+        usdinr_response.raise_for_status()
+        usdinr_data = usdinr_response.json()
+        usdinr_price_str = usdinr_data.get('price')
 
-        if "code" in data and data["code"] != 200:
-            print(f"Twelve Data API error: {data.get('message', 'Unknown error')}")
-            return None, None
-
-        dxy_price_str = data.get('DXY', {}).get('price')
-        usdinr_price_str = data.get('USD/INR', {}).get('price')
+        # --- Call 2: Get DXY using the /quote endpoint ---
+        dxy_url = f"https://api.twelvedata.com/quote?symbol=DXY&apikey={TWELVE_DATA_API_KEY}"
+        dxy_response = requests.get(dxy_url)
+        dxy_response.raise_for_status()
+        dxy_data = dxy_response.json()
+        dxy_price_str = dxy_data.get('close') # In /quote, the price is often in the 'close' field
 
         if not dxy_price_str or not usdinr_price_str:
-            # --- NEW DEBUGGING LINES ADDED HERE ---
-            print("--- RAW API RESPONSE ---")
-            print(data)
+            print("--- RAW DXY RESPONSE ---")
+            print(dxy_data)
+            print("--- RAW USD/INR RESPONSE ---")
+            print(usdinr_data)
             print("------------------------")
-            print("Error: Could not parse price data from Twelve Data response.")
+            print("Error: Could not parse price data from one of the Twelve Data responses.")
             return None, None
 
         dxy_price = float(dxy_price_str)
