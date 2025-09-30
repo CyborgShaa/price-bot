@@ -34,12 +34,13 @@ def get_market_data():
         usdinr_data = usdinr_response.json()
         usdinr_price_str = usdinr_data.get('price')
 
-        # --- Call 2: Get DXY using the /quote endpoint ---
-        dxy_url = f"https://api.twelvedata.com/quote?symbol=DXY&apikey={TWELVE_DATA_API_KEY}"
+        # --- Call 2: Get DXY using the /quote endpoint with the correct symbol ---
+        # THIS IS THE LINE WE ARE FIXING
+        dxy_url = f"https://api.twelvedata.com/quote?symbol=TVC:DXY&apikey={TWELVE_DATA_API_KEY}"
         dxy_response = requests.get(dxy_url)
         dxy_response.raise_for_status()
         dxy_data = dxy_response.json()
-        dxy_price_str = dxy_data.get('close') # In /quote, the price is often in the 'close' field
+        dxy_price_str = dxy_data.get('close')
 
         if not dxy_price_str or not usdinr_price_str:
             print("--- RAW DXY RESPONSE ---")
