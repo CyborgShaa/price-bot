@@ -84,7 +84,12 @@ if __name__ == "__main__":
         if last_uup:
             change = uup - last_uup
             percent_change = (change / last_uup) * 100
-            emoji = "🟢🔼" if change > 0 else "🔴🔽"
+            if change > 0:
+                emoji = "🟢🔼"
+            elif change < 0:
+                emoji = "🔴🔽"
+            else:
+                emoji = "⚪↔️" # Neutral emoji for no change
             uup_change_str = f"  `{emoji} Change: {change:+.2f} ({percent_change:+.2f}%)`"
         # Updating the message to reflect UUP
         message_lines.append(f"💵 *Dollar Index ETF (UUP):* `{uup:.2f}`{uup_change_str}")
@@ -94,7 +99,12 @@ if __name__ == "__main__":
         if last_usdinr:
             change = usdinr - last_usdinr
             percent_change = (change / last_usdinr) * 100
-            emoji = "🟢🔼" if change > 0 else "🔴🔽"
+            if change > 0:
+                emoji = "🟢🔼"
+            elif change < 0:
+                emoji = "🔴🔽"
+            else:
+                emoji = "⚪↔️" # Neutral emoji for no change
             usdinr_change_str = f"  `{emoji} Change: {change:+.4f} ({percent_change:+.2f}%)`"
         message_lines.append(f"🇮🇳 *USD/INR Exchange Rate:* `{usdinr:.4f}`{usdinr_change_str}")
 
